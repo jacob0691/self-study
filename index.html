@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI 학습 도우미 앱</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #222;
+    }
+
+    header {
+      background: #263238;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 30px auto;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    textarea {
+      width: 100%;
+      height: 180px;
+      padding: 15px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+      resize: vertical;
+    }
+
+    button {
+      background: #1976d2;
+      color: white;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+      margin: 5px 5px 5px 0;
+    }
+
+    button:hover {
+      background: #0d47a1;
+    }
+
+    .secondary {
+      background: #455a64;
+    }
+
+    .danger {
+      background: #c62828;
+    }
+
+    .output {
+      background: #eef3f7;
+      padding: 15px;
+      border-radius: 10px;
+      min-height: 80px;
+      white-space: pre-wrap;
+    }
+
+    input {
+      padding: 10px;
+      width: 80%;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 15px;
+    }
+
+    .quiz-box {
+      background: #fff8e1;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+
+    .small {
+      font-size: 13px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>자료 학습 & 공부 앱</h1>
+  <p>사용자가 올린 자료를 정리하고, 요약하고, 퀴즈로 공부시키는 앱</p>
+</header>
+
+<div class="container">
+
+  <div class="card">
+    <h2>1. 학습 자료 입력</h2>
+    <p class="small">설교문, 강의안, 성경공부 자료, 문서 내용을 붙여넣으세요.</p>
+    <textarea id="sourceText" placeholder="여기에 학습할 자료를 붙여넣으세요..."></textarea>
+    <br>
+    <button onclick="saveMaterial()">자료 저장</button>
+    <button class="secondary" onclick="loadMaterial()">저장 자료 불러오기</button>
+    <button class="danger" onclick="clearMaterial()">전체 삭제</button>
+  </div>
+
+  <div class="card">
+    <h2>2. 핵심 요약</h2>
+    <button onclick="summarizeText()">요약하기</button>
+    <div id="summary" class="output"></div>
+  </div>
+
+  <div class="card">
+    <h2>3. 핵심 키워드 추출</h2>
+    <button onclick="extractKeywords()">키워드 뽑기</button>
+    <div id="keywords" class="output"></div>
+  </div>
+
+  <div class="card">
+    <h2>4. 자동 복습 질문 만들기</h2>
+    <button onclick="makeQuestions()">질문 만들기</button>
+    <div id="questions" class="output"></div>
+  </div>
+
+  <div class="card">
+    <h2>5. 퀴즈 학습</h2>
+    <button onclick="startQuiz()">퀴즈 시작</button>
+
+    <div class="quiz-box">
+      <h3 id="quizQuestion">문제가 여기에 표시됩니다.</h3>
+      <input type="text" id="answerInput" placeholder="답을 입력하세요">
+      <button onclick="checkAnswer()">정답 확인</button>
+      <div id="quizResult" class="output"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let savedText = "";
+  let quizList = [];
+  let currentQuiz = 0;
+
+  function getText() {
+    return document.getElementById("sourceText").value.trim();
+  }
+
+  function saveMaterial() {
+    const text = getText();
+
+    if (!text) {
+      alert("먼저 자료를 입력하세요.");
+      return;
+    }
+
+    localStorage.setItem("studyMaterial", text);
+    savedText = text;
+    alert("자료가 저장되었습니다.");
+  }
+
+  function loadMaterial() {
+    const text = localStorage.getItem("studyMaterial");
+
+    if (!text) {
+      alert("저장된 자료가 없습니다.");
+      return;
+    }
+
+    document.getElementById("sourceText").value = text;
+    savedText = text;
+  }
+
+  function clearMaterial() {
+    localStorage.removeItem("studyMaterial");
+    document.getElementById("sourceText").value = "";
+    document.getElementById("summary").innerText = "";
+    document.getElementById("keywords").innerText = "";
+    document.getElementById("questions").innerText = "";
+    document.getElementById("quizQuestion").innerText = "문제가 여기에 표시됩니다.";
+    document.getElementById("quizResult").innerText = "";
+    alert("삭제되었습니다.");
+  }
+
+  function summarizeText() {
+    const text = getText();
+
+    if (!text) {
+      alert("자료를 입력하세요.");
+      return;
+    }
+
+    const sentences = text
+      .replace(/\n/g, " ")
+      .split(/[.!?。]|다\.|요\./)
+      .map(s => s.trim())
+      .filter(s => s.length > 15);
+
+    let summary = sentences.slice(0, 5).join("\n\n");
+
+    if (!summary) {
+      summary = text.slice(0, 500) + "...";
+    }
+
+    document.getElementById("summary").innerText =
+      "핵심 요약:\n\n" + summary;
+  }
+
+  function extractKeywords() {
+    const text = getText();
+
+    if (!text) {
+      alert("자료를 입력하세요.");
+      return;
+    }
+
+    const words = text
+      .replace(/[^\w가-힣\s]/g, "")
+      .split(/\s+/)
+      .filter(word => word.length >= 2);
+
+    const count = {};
+
+    words.forEach(word => {
+      count[word] = (count[word] || 0) + 1;
+    });
+
+    const keywords = Object.entries(count)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15)
+      .map(item => `${item[0]} (${item[1]}회)`)
+      .join("\n");
+
+    document.getElementById("keywords").innerText =
+      "핵심 키워드:\n\n" + keywords;
+  }
+
+  function makeQuestions() {
+    const text = getText();
+
+    if (!text) {
+      alert("자료를 입력하세요.");
+      return;
+    }
+
+    const lines = text
+      .split(/\n|\.|다\.|요\./)
+      .map(line => line.trim())
+      .filter(line => line.length > 20);
+
+    const selected = lines.slice(0, 7);
+
+    let questions = selected.map((line, index) => {
+      return `${index + 1}. 다음 내용을 설명해 보세요:\n"${line.slice(0, 80)}..."`;
+    }).join("\n\n");
+
+    document.getElementById("questions").innerText = questions;
+  }
+
+  function startQuiz() {
+    const text = getText();
+
+    if (!text) {
+      alert("자료를 입력하세요.");
+      return;
+    }
+
+    const sentences = text
+      .split(/\n|\.|다\.|요\./)
+      .map(s => s.trim())
+      .filter(s => s.length > 25);
+
+    quizList = sentences.slice(0, 10).map(sentence => {
+      const words = sentence.split(" ");
+      const answer = words.find(w => w.length >= 3) || words[0];
+
+      return {
+        question: sentence.replace(answer, "_____"),
+        answer: answer
+      };
+    });
+
+    if (quizList.length === 0) {
+      alert("퀴즈를 만들 수 있는 문장이 부족합니다.");
+      return;
+    }
+
+    currentQuiz = 0;
+    showQuiz();
+  }
+
+  function showQuiz() {
+    document.getElementById("quizQuestion").innerText =
+      `문제 ${currentQuiz + 1}: ${quizList[currentQuiz].question}`;
+
+    document.getElementById("answerInput").value = "";
+    document.getElementById("quizResult").innerText = "";
+  }
+
+  function checkAnswer() {
+    if (quizList.length === 0) {
+      alert("먼저 퀴즈를 시작하세요.");
+      return;
+    }
+
+    const userAnswer = document.getElementById("answerInput").value.trim();
+    const correctAnswer = quizList[currentQuiz].answer;
+
+    if (userAnswer === correctAnswer) {
+      document.getElementById("quizResult").innerText =
+        "정답입니다!";
+    } else {
+      document.getElementById("quizResult").innerText =
+        `아쉽습니다.\n정답: ${correctAnswer}`;
+    }
+
+    currentQuiz++;
+
+    if (currentQuiz < quizList.length) {
+      setTimeout(showQuiz, 1500);
+    } else {
+      setTimeout(() => {
+        document.getElementById("quizQuestion").innerText =
+          "퀴즈가 끝났습니다.";
+      }, 1500);
+    }
+  }
+</script>
+
+</body>
+</html>
+
